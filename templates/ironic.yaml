@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ironic-config
+data:
+  ironic.conf: |
+    [DEFAULT]
+    auth_strategy = noauth
+    #rpc_transport = json-rpc
+    transport_url = rabbit://rabbitmq:password@rabbitmq:5672//
+    [conductor]
+    api_url = http://ironic-api:6385/
+    [dhcp]
+    dhcp_provider = none
+    [pxe]
+    tftp_root = /tftpboot
+    [database]
+    connection = mysql+pymysql://{{ .Values.mysql.user }}:{{ .Values.mysql.password }}@{{ .Values.mysql.host }}/ironic
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ironic-conductor
+  labels:
+    app: ironic-conductor
+spec:
+  type: NodePort
+  ports:
+  - port: 69
+    protocol: UDP
+    name: tftp
+  - port: 80
+    protocol: TCP
+    name: web
+  selector:
+    app: tftp
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ironic-conductor
+spec:
+  selector:
+    matchLabels:
+      app: ironic-conductor
+  serviceName: "conductor"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ironic-conductor
+    spec:
+      containers:
+      - name: ironic-conductor
+        image: openstackhelm/ironic:pike
+        volumeMounts:
+        - name: ironic-config
+          mountPath: /etc/ironic.conf
+          subPath: ironic.conf
+          readOnly: true
+        - name: tftp-data
+          mountPath: /tftpboot
+        command:
+          - "/var/lib/openstack/bin/ironic-conductor"
+      - name: tftp
+        image: openstackhelm/ironic:pike
+        ports:
+        - containerPort: 69
+          protocol: UDP
+          name: tftp
+        command:
+          - "/usr/sbin/in.tftpd"
+          - "--verbose"
+          - "--foreground"
+          - "--user" 
+          - "root"
+          - "--address"
+          - "0.0.0.0:69"
+        volumeMounts:
+        - name: tftp-data
+          mountPath: /tftpboot
+      volumes:
+      - name: ironic-config
+        configMap:
+          name: ironic-config
+      - name: tftp-data
+        emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ironic-api
+spec:
+  selector:
+    matchLabels:
+      app: ironic-api
+  serviceName: "ironic-api"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ironic-api
+    spec:
+      containers:
+      - name: ironic-api
+        image: openstackhelm/ironic:pike
+        volumeMounts:
+        - name: ironic-config
+          mountPath: /etc/ironic.conf
+          subPath: ironic.conf
+          readOnly: true
+        command:
+          - "/var/lib/openstack/bin/ironic-api"
+        ports:
+        - containerPort: 6385
+      volumes:
+      - name: ironic-config
+        configMap:
+          name: ironic-config
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: ironic-api
+spec:
+  type: NodePort
+  selector:
+    app: ironic-api
+  ports:
+  - protocol: TCP
+    port: 6385

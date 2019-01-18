@@ -1,0 +1,16 @@
+dhcp:
+  interface: ens4
+  address: 10.20.2.2
+  prefix_len: 24
+  range_start: 10.20.2.10
+  range_end: 10.20.2.250
+  gateway: 10.20.2.1
+  dns: 10.233.0.3
+  boot: pxelinux.0
+
+mysql:
+  user: ironic
+  host: mariadb.kaas
+  password: password
+  root_password: password
+

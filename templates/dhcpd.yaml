@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: run-tftpd
+data:
+  run-tftpd.sh: |
+    /sbin/ip addr add {{ .Values.dhcp.address }}/{{ .Values.dhcp.prefix_len }} dev {{ .Values.dhcp.interface }}
+    /sbin/ip link set {{ .Values.dhcp.interface }} up
+    exec dnsmasq --no-daemon --port=0 --dhcp-range={{ .Values.dhcp.range_start }},{{ .Values.dhcp.range_end }} --dhcp-option=3,{{ .Values.dhcp.gateway }} --dhcp-option=6,{{ .Values.dhcp.dns }} --dhcp-boot={{ .Values.dhcp.boot }} --enable-tftp --tftp-root=/tftpboot
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: dnsmasq
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dnsmasq
+  template:
+    metadata:
+      labels:
+        app: dnsmasq
+    spec:
+      hostNetwork: true
+      containers:
+        - name: dnsmasq
+          securityContext:
+            privileged: true
+          image: iredixin/dnsm:latest
+          command: ["/bin/sh"]
+          args: ["/bin/run-tftpd.sh"]
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/ip", "addr", "del", "{{ .Values.dhcp.address }}", "dev", "{{ .Values.dhcp.interface }}"]
+          volumeMounts:
+          - mountPath: "/var/lib/misc"
+            name: dhcp-leases
+          - mountPath: "/bin/run-tftpd.sh"
+            subPath: run-tftpd.sh
+            readOnly: true
+            name: run-tftpd
+          - name: tftp-data
+            mountPath: /tftpboot
+
+      volumes:
+        - name: dhcp-leases
+          emptydir: {}
+        - name: run-tftpd
+          configMap:
+            name: run-tftpd
+            defaultMode: 0555
+        - name: tftp-data
+          emptyDir: {}
+

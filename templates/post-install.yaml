@@ -1,0 +1,55 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{.Release.Name}}"
+  labels:
+    app.kubernetes.io/managed-by: {{.Release.Service | quote }}
+    app.kubernetes.io/instance: {{.Release.Name | quote }}
+    helm.sh/chart: "{{.Chart.Name}}-{{.Chart.Version}}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "{{.Release.Name}}"
+      labels:
+        app.kubernetes.io/managed-by: {{.Release.Service | quote }}
+        app.kubernetes.io/instance: {{.Release.Name | quote }}
+        helm.sh/chart: "{{.Chart.Name}}-{{.Chart.Version}}"
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: post-install-job
+        image: openstackhelm/ironic:pike
+        command: ["python", "/tmp/db-create.py"]
+        volumeMounts:
+        - name: db-create
+          mountPath: /tmp/db-create.py
+          subPath: db-create.py
+          readOnly: true
+        - name: ironic-config
+          mountPath: /etc/ironic.conf
+          subPath: ironic.conf
+          readOnly: true
+      volumes:
+      - name: db-create
+        configMap:
+          name: db-create
+      - name: ironic-config
+        configMap:
+          name: ironic-config
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-create
+data:
+  db-create.py: |
+    {{- include "wtf" . | indent 4 }}
