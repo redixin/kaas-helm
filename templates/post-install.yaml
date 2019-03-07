@@ -25,7 +25,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: post-install-job
-        image: openstackhelm/ironic:pike
+        image: openstackhelm/ironic:queens
         command: ["python", "/tmp/db-create.py"]
         volumeMounts:
         - name: db-create

@@ -6,10 +6,10 @@ data:
   ironic.conf: |
     [DEFAULT]
     auth_strategy = noauth
-    #rpc_transport = json-rpc
     transport_url = rabbit://rabbitmq:password@rabbitmq:5672//
     [conductor]
     api_url = http://ironic-api:6385/
+    automated_clean = false
     [dhcp]
     dhcp_provider = none
     [pxe]
@@ -54,7 +54,7 @@ spec:
     spec:
       containers:
       - name: ironic-conductor
-        image: openstackhelm/ironic:pike
+        image: openstackhelm/ironic:queens
         volumeMounts:
         - name: ironic-config
           mountPath: /etc/ironic.conf
@@ -64,23 +64,6 @@ spec:
           mountPath: /tftpboot
         command:
           - "/var/lib/openstack/bin/ironic-conductor"
-      - name: tftp
-        image: openstackhelm/ironic:pike
-        ports:
-        - containerPort: 69
-          protocol: UDP
-          name: tftp
-        command:
-          - "/usr/sbin/in.tftpd"
-          - "--verbose"
-          - "--foreground"
-          - "--user" 
-          - "root"
-          - "--address"
-          - "0.0.0.0:69"
-        volumeMounts:
-        - name: tftp-data
-          mountPath: /tftpboot
       volumes:
       - name: ironic-config
         configMap:
@@ -106,7 +89,7 @@ spec:
     spec:
       containers:
       - name: ironic-api
-        image: openstackhelm/ironic:pike
+        image: openstackhelm/ironic:queens
         volumeMounts:
         - name: ironic-config
           mountPath: /etc/ironic.conf

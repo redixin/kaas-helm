@@ -6,6 +6,22 @@ data:
   run-tftpd.sh: |
     /sbin/ip addr add {{ .Values.dhcp.address }}/{{ .Values.dhcp.prefix_len }} dev {{ .Values.dhcp.interface }}
     /sbin/ip link set {{ .Values.dhcp.interface }} up
+    #wget http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe_image-oem-stable-pike.cpio.gz -O /tftpboot/ramdisk.coreos
+    #wget http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe-stable-pike.vmlinuz -O /tftpboot/kernel.coreos
+    wget http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe_image-oem-stable-queens.cpio.gz -O /tftpboot/ramdisk
+    wget http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe-stable-queens.vmlinuz -O /tftpboot/kernel
+    apk add syslinux
+    cp /usr/share/syslinux/pxelinux.0 /tftpboot/
+    cp /usr/share/syslinux/ldlinux.c32 /tftpboot/
+    mkdir /tftpboot/pxelinux.cfg
+    cat << EOF > /tftpboot/pxelinux.cfg/default
+    default deploy
+    label deploy
+    kernel kernel
+    append initrd=ramdisk selinux=0 troubleshoot=0 text nofb nomodeset vga=normal ipa-api-url=http://$IRONIC_API_SERVICE_HOST:$IRONIC_API_SERVICE_PORT coreos.configdrive=0
+    ipappend 3
+    EOF
+
     exec dnsmasq --no-daemon --port=0 --dhcp-range={{ .Values.dhcp.range_start }},{{ .Values.dhcp.range_end }} --dhcp-option=3,{{ .Values.dhcp.gateway }} --dhcp-option=6,{{ .Values.dhcp.dns }} --dhcp-boot={{ .Values.dhcp.boot }} --enable-tftp --tftp-root=/tftpboot
 
 ---
