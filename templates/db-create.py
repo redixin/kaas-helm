@@ -26,7 +26,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-db_connection = "mysql+pymysql://root:password@mariadb.kaas/mysql"
+db_connection = "mysql+pymysql://root:password@mariadb/mysql"
 
 root_engine = create_engine(db_connection)
 root_user = root_engine.url.username

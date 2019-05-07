@@ -10,7 +10,7 @@ dhcp:
 
 mysql:
   user: ironic
-  host: mariadb.kaas
+  host: mariadb
   password: password
   root_password: password
 
